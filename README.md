@@ -28,6 +28,16 @@ xcodebuild -project Cliper.xcodeproj -scheme Cliper -configuration Release -dest
 
 The app is then at `build/Build/Products/Release/Cliper.app`. To build without a signing certificate, add `CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO DEVELOPMENT_TEAM=`.
 
+### App Store variant
+
+The same code builds a sandboxed Mac App Store variant. It uses `Cliper/Cliper-AppStore.entitlements` (App Sandbox on) and the `APPSTORE` compilation condition, which removes auto-paste: a double click copies the entry, closes the popover and returns focus to the previous app, and you press ⌘V yourself. No Accessibility permission is requested.
+
+```bash
+xcodebuild -project Cliper.xcodeproj -scheme Cliper -configuration Release -destination 'platform=macOS' -derivedDataPath ./build-appstore build CODE_SIGN_ENTITLEMENTS=Cliper/Cliper-AppStore.entitlements SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) APPSTORE'
+```
+
+The sandboxed app keeps its history in `~/Library/Containers/<bundle id>/Data/Library/Application Support/<bundle id>/`, so it does not see the history of the non-sandboxed build.
+
 ## License
 
 License: GPL-3.0-or-later, see [LICENSE](LICENSE).

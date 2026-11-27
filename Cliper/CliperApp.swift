@@ -1,7 +1,9 @@
 import SwiftUI
 import AppKit
+#if !APPSTORE
 import ApplicationServices
 import Carbon.HIToolbox
+#endif
 
 @main
 struct CliperApp: App {
@@ -125,7 +127,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     /// Double click: copy, close the popover, return to the previous app and
-    /// press Cmd-V there.
+    /// press Cmd-V there. The App Store build (APPSTORE) is sandboxed and does
+    /// not synthesize key presses: it only copies and returns focus, so the
+    /// user presses Cmd-V.
     private func paste(_ item: ClipboardItem) {
         guard copy(item) else { return }
         popover.performClose(nil)
@@ -135,6 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSApp.hide(nil)
         target?.activate()
 
+        #if !APPSTORE
         // Synthesizing key presses needs the Accessibility permission. Ask for it
         // once; until it is granted, double click only copies.
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
@@ -143,8 +148,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             Self.postCommandV()
         }
+        #endif
     }
 
+    #if !APPSTORE
     private static func postCommandV() {
         let source = CGEventSource(stateID: .combinedSessionState)
         let keyCode = CGKeyCode(kVK_ANSI_V)
@@ -155,6 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         down?.post(tap: .cghidEventTap)
         up?.post(tap: .cghidEventTap)
     }
+    #endif
 
     private func confirmClear() {
         let count = store.items.count
