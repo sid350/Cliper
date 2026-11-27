@@ -4,7 +4,10 @@ import AppKit
 /// Content of the status bar popover.
 struct ClipboardView: View {
     @ObservedObject var store: ClipboardStore
-    let onSelect: (ClipboardItem) -> Void
+    /// Single click: copy to the clipboard. Returns false if that failed.
+    let onCopy: (ClipboardItem) -> Bool
+    /// Double click: copy and paste into the previous app.
+    let onPaste: (ClipboardItem) -> Void
     let onClear: () -> Void
     let onQuit: () -> Void
 
@@ -53,10 +56,16 @@ struct ClipboardView: View {
                         ClipboardRow(
                             item: item,
                             thumbnail: item.kind == .image ? store.thumbnail(for: item) : nil,
-                            onSelect: { onSelect(item) }
+                            onClick: { clickCount in
+                                if clickCount >= 2 {
+                                    onPaste(item)
+                                } else {
+                                    _ = onCopy(item)
+                                }
+                            }
                         )
                         .contextMenu {
-                            Button("Copy") { onSelect(item) }
+                            Button("Copy") { _ = onCopy(item) }
                             Divider()
                             Button("Delete") { store.remove(item) }
                         }
@@ -77,12 +86,21 @@ struct ClipboardView: View {
 private struct ClipboardRow: View {
     let item: ClipboardItem
     let thumbnail: NSImage?
-    let onSelect: () -> Void
+    /// Called on every click with the click count (1 = single, 2 = double).
+    let onClick: (Int) -> Void
 
     @State private var isHovered = false
 
     var body: some View {
-        Button(action: onSelect) {
+        Button {
+            // A Button fires on each click; the current event tells whether
+            // this is the second click of a double click.
+            // (clickCount is only valid for mouse events; keyboard or
+            // accessibility presses count as a single click.)
+            let event = NSApp.currentEvent
+            let isMouseUp = event?.type == .leftMouseUp || event?.type == .leftMouseDown
+            onClick(isMouseUp ? (event?.clickCount ?? 1) : 1)
+        } label: {
             HStack {
                 switch item.kind {
                 case .text:
