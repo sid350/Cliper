@@ -1,0 +1,18 @@
+{
+  "images" : [
+    {
+      "filename" : "Sprite_heart.png",
+      "idiom" : "mac",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "Sprite_heart 1.png",
+      "idiom" : "mac",
+      "scale" : "2x"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
