@@ -21,9 +21,26 @@ struct ClipboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search", text: $query)
-                .textFieldStyle(.roundedBorder)
-                .padding(10)
+            // Drawn with its own background so it stays visible even while the
+            // popover's window is not key (the system may refuse to activate a
+            // menu bar app, and a .roundedBorder field then looks empty).
+            HStack(spacing: 6) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search", text: $query)
+                    .textFieldStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.primary.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.primary.opacity(0.15), lineWidth: 1)
+            )
+            .padding(10)
 
             Divider()
 
@@ -124,14 +141,61 @@ private struct ClipboardRow: View {
             }
             .padding(.vertical, 5)
             .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isHovered ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .fill(isHovered ? Color.accentColor.opacity(0.25) : Color.clear)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
+        // SwiftUI's onHover doesn't fire reliably in a popover of a menu bar
+        // app, so track the mouse with an AppKit tracking area instead.
+        .background(HoverTracker(isHovered: $isHovered))
         .help(item.text.map { String($0.prefix(500)) } ?? "Image")
+    }
+}
+
+/// Reports whether the mouse is over this view, using an NSTrackingArea that is
+/// active even when the popover's window is not key. It sits in the background,
+/// so it never takes clicks away from the row.
+private struct HoverTracker: NSViewRepresentable {
+    @Binding var isHovered: Bool
+
+    func makeNSView(context: Context) -> TrackingView {
+        let view = TrackingView()
+        view.onChange = { hovering in
+            if isHovered != hovering { isHovered = hovering }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackingView, context: Context) {
+        nsView.onChange = { hovering in
+            if isHovered != hovering { isHovered = hovering }
+        }
+    }
+
+    final class TrackingView: NSView {
+        var onChange: ((Bool) -> Void)?
+
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            trackingAreas.forEach(removeTrackingArea)
+            addTrackingArea(NSTrackingArea(
+                rect: .zero,
+                options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                owner: self
+            ))
+            // Re-check after scrolling or layout changes moved the row.
+            if let window {
+                let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+                onChange?(bounds.contains(point))
+            }
+        }
+
+        override func mouseEntered(with event: NSEvent) { onChange?(true) }
+        override func mouseExited(with event: NSEvent) { onChange?(false) }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }
 }
